@@ -1,0 +1,136 @@
+{
+  "product_name": "Nimbus Sync",
+  "customers": [
+    {
+      "id": "marcus",
+      "name": "Marcus Chen",
+      "plan": "Business",
+      "environment": "Windows 11, Nimbus Sync desktop v4.2 + mobile app, connects through a corporate Cisco AnyConnect VPN",
+      "history": [
+        {
+          "ticket_id": "tick_marcus_1",
+          "days_ago": 42,
+          "subject": "Files stuck syncing over VPN",
+          "customer_message": "My project files have been stuck on 'syncing' for over an hour. I'm on our office VPN if that matters.",
+          "agent_reply": "Thanks for flagging this, Marcus. Corporate VPNs sometimes throttle the long-lived connection Nimbus Sync uses. I've restarted the sync session on our end — can you confirm it's moving again? If this happens again, try toggling the VPN off and on once, which usually clears it.",
+          "resolution_summary": "VPN was throttling the sync connection; restarted the session server-side and it resumed.",
+          "sentiment": "frustrated",
+          "resolved": true,
+          "root_cause_tag": "sync-timeout-vpn",
+          "is_known_issue": false,
+          "module": "sync-engine"
+        },
+        {
+          "ticket_id": "tick_marcus_2",
+          "days_ago": 24,
+          "subject": "Same syncing issue as before",
+          "customer_message": "It's happening again — the same stuck-syncing thing over VPN. I already restarted my router before opening this ticket, so please don't ask me to do that again, it never helps.",
+          "agent_reply": "Understood, and noted — router restarts aren't the fix here, so I won't suggest that again. This looks like the same VPN keep-alive timeout as last time. I've bumped your account's sync keep-alive interval, which should stop this from recurring as often. Let me know if it still stalls.",
+          "resolution_summary": "Same VPN keep-alive timeout as ticket tick_marcus_1; increased the account's sync keep-alive interval. Marcus explicitly asked not to be told to restart his router — that is not an effective fix for him and should not be suggested again.",
+          "sentiment": "frustrated",
+          "resolved": true,
+          "root_cause_tag": "sync-timeout-vpn",
+          "is_known_issue": false,
+          "module": "sync-engine"
+        },
+        {
+          "ticket_id": "tick_marcus_3",
+          "days_ago": 9,
+          "subject": "Mobile app not showing latest files",
+          "customer_message": "Different issue this time — my phone isn't showing files I synced from my laptop this morning.",
+          "agent_reply": "Good to isolate that it's a different issue. Your mobile app was on v3.9, which had a delta-sync bug — I've pushed a refresh token so it force-updates to v4.1 on next open. That should bring your laptop's files in within a minute or two.",
+          "resolution_summary": "Mobile app was on an outdated build (v3.9) with a delta-sync bug; force-updated to v4.1 via refresh token.",
+          "sentiment": "neutral",
+          "resolved": true,
+          "root_cause_tag": "mobile-outdated-build",
+          "is_known_issue": false,
+          "module": "mobile-app"
+        }
+      ],
+      "live_ticket": {
+        "subject": "Sync stalled again this morning",
+        "customer_message": "Hey, it's happening again — my project files aren't syncing. This is like the third time this month."
+      }
+    },
+    {
+      "id": "priya",
+      "name": "Priya Nair",
+      "plan": "Free",
+      "environment": "MacBook Air, Nimbus Sync desktop v4.2, home wifi",
+      "history": [],
+      "live_ticket": {
+        "subject": "New here — sync seems really slow",
+        "customer_message": "Hi, I just signed up and my photos folder has been 'syncing' for like an hour. Is that normal?"
+      }
+    },
+    {
+      "id": "omar",
+      "name": "Omar Farouk",
+      "plan": "Business",
+      "environment": "Windows 10, Nimbus Sync desktop v4.1, laptop switches between office wifi and sleep frequently",
+      "history": [
+        {
+          "ticket_id": "tick_omar_1",
+          "days_ago": 11,
+          "subject": "Sync freezes after closing laptop lid",
+          "customer_message": "Whenever I close my laptop and open it later, the sync icon just spins forever until I quit and reopen the app.",
+          "agent_reply": "Thanks for the detail — this looks like the sync engine not re-establishing its connection cleanly after sleep. I've restarted your sync session and flagged this for the engineering team as it looks like it may not be isolated to your account.",
+          "resolution_summary": "Sync engine fails to re-establish its connection cleanly after the OS suspends/resumes (sleep-wake). Restarted session as a workaround; flagged as possibly systemic.",
+          "sentiment": "neutral",
+          "resolved": true,
+          "root_cause_tag": "sleep-wake-stall",
+          "is_known_issue": true,
+          "module": "sync-engine"
+        }
+      ],
+      "live_ticket": null
+    },
+    {
+      "id": "lena",
+      "name": "Lena Ortiz",
+      "plan": "Team",
+      "environment": "Windows 11 laptop, Nimbus Sync desktop v4.1, frequently moves between meeting rooms and sleeps the laptop",
+      "history": [
+        {
+          "ticket_id": "tick_lena_1",
+          "days_ago": 6,
+          "subject": "Stuck sync icon after standby",
+          "customer_message": "Same as a coworker mentioned — after my laptop wakes from standby, Nimbus shows a spinning sync icon that never finishes.",
+          "agent_reply": "You're the second report of this pattern this week — after the OS resumes from sleep, the sync engine isn't reconnecting on its own. I've restarted your session for now. Our engineering team is aware and working on an automatic reconnect fix.",
+          "resolution_summary": "Second report this week of the sync engine failing to reconnect after OS sleep/resume. Restarted session as a workaround; confirmed as a recurring, systemic pattern, not isolated.",
+          "sentiment": "neutral",
+          "resolved": true,
+          "root_cause_tag": "sleep-wake-stall",
+          "is_known_issue": true,
+          "module": "sync-engine"
+        }
+      ],
+      "live_ticket": null
+    },
+    {
+      "id": "dana",
+      "name": "Dana Whitfield",
+      "plan": "Team",
+      "environment": "Windows 11 laptop, Nimbus Sync desktop v4.2, closes the lid between back-to-back meetings all day",
+      "history": [
+        {
+          "ticket_id": "tick_dana_1",
+          "days_ago": 30,
+          "subject": "Question about seat billing",
+          "customer_message": "We added two people to the team plan last week — when does the prorated charge show up?",
+          "agent_reply": "Good question — prorated charges for mid-cycle seat additions show up on your next billing date, itemized separately from your base plan. You can preview the exact amount any time under Billing > Upcoming invoice.",
+          "resolution_summary": "Explained proration timing for mid-cycle seat additions on the Team plan.",
+          "sentiment": "neutral",
+          "resolved": true,
+          "root_cause_tag": null,
+          "is_known_issue": false,
+          "module": "billing"
+        }
+      ],
+      "live_ticket": {
+        "subject": "Files not syncing after my laptop wakes up",
+        "customer_message": "Every time I close my laptop lid between meetings and open it again later, Nimbus shows a spinning sync icon that never finishes until I manually restart the app. Is this a known thing?"
+      }
+    }
+  ]
+}

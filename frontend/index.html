@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Continuum — memory-native support console</title>
+<style>
+  :root{
+    --bg:#10121a;
+    --panel:#171a24;
+    --panel-2:#1d2130;
+    --panel-3:#232842;
+    --border:#2a2f42;
+    --text:#e7e9f0;
+    --text-dim:#9ba0b4;
+    --text-faint:#6b7086;
+    --accent:#7c6cf0;
+    --accent-soft:#7c6cf026;
+    --alert:#f2a93b;
+    --alert-soft:#f2a93b22;
+    --ok:#33c2a0;
+    --ok-soft:#33c2a022;
+    --danger:#f0616b;
+    --danger-soft:#f0616b22;
+    --radius-panel:6px;
+    --radius-pill:999px;
+    --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Consolas, monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-sans);
+    font-size:14px;
+    line-height:1.5;
+  }
+  ::selection{background:var(--accent-soft);}
+  button{font-family:inherit;}
+
+  .app{
+    display:grid;
+    grid-template-columns: 260px 1fr 320px;
+    height:100vh;
+  }
+  @media (max-width: 980px){
+    .app{grid-template-columns: 1fr; height:auto;}
+    .sidebar,.insight{border:none; border-bottom:1px solid var(--border);}
+  }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    background:var(--panel);
+    border-right:1px solid var(--border);
+    display:flex;
+    flex-direction:column;
+    min-height:0;
+  }
+  .brand{
+    padding:20px 18px 14px;
+    border-bottom:1px solid var(--border);
+  }
+  .brand-mark{
+    font-size:17px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .brand-mark .dot{color:var(--accent);}
+  .brand-sub{
+    margin-top:4px;
+    font-size:12px;
+    color:var(--text-faint);
+  }
+  .seed-bar{padding:14px 18px; border-bottom:1px solid var(--border);}
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    border:1px solid var(--border);
+    background:var(--panel-2);
+    color:var(--text);
+    padding:9px 14px;
+    border-radius:var(--radius-panel);
+    font-size:13px;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .btn:hover{border-color:var(--accent); background:var(--panel-3);}
+  .btn:disabled{opacity:.45; cursor:default;}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#0e0c1c; font-weight:600;}
+  .btn.primary:hover{background:#8d7ff5;}
+  .btn.block{width:100%;}
+  .btn.small{padding:6px 10px; font-size:12px;}
+
+  .customer-list{flex:1; overflow-y:auto; padding:8px;}
+  .customer-row{
+    padding:10px 10px;
+    border-radius:var(--radius-panel);
+    cursor:pointer;
+    margin-bottom:2px;
+  }
+  .customer-row:hover{background:var(--panel-2);}
+  .customer-row.active{background:var(--panel-3); box-shadow:inset 2px 0 0 var(--accent);}
+  .customer-name{font-weight:600; font-size:13.5px;}
+  .customer-meta{font-size:11.5px; color:var(--text-faint); margin-top:2px; font-family:var(--font-mono);}
+  .empty-hint{
+    padding:22px 18px;
+    color:var(--text-dim);
+    font-size:13px;
+  }
+
+  /* ---------- Main thread column ---------- */
+  .main{display:flex; flex-direction:column; min-height:0; min-width:0;}
+  .thread-header{
+    padding:16px 22px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+  }
+  .thread-title{font-size:15px; font-weight:600;}
+  .thread-subject{font-size:12.5px; color:var(--text-dim); margin-top:2px;}
+  .mode-toggle{
+    display:flex;
+    border:1px solid var(--border);
+    border-radius:var(--radius-pill);
+    overflow:hidden;
+    font-size:12px;
+    flex-shrink:0;
+  }
+  .mode-toggle button{
+    border:none;
+    background:transparent;
+    color:var(--text-dim);
+    padding:7px 14px;
+    cursor:pointer;
+  }
+  .mode-toggle button.active.on{background:var(--accent); color:#0e0c1c; font-weight:600;}
+  .mode-toggle button.active.off{background:var(--panel-3); color:var(--text);}
+
+  .thread{
+    flex:1;
+    overflow-y:auto;
+    padding:20px 22px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .msg{max-width:640px; display:flex; flex-direction:column; gap:6px;}
+  .msg.customer{align-self:flex-start;}
+  .msg.agent{align-self:flex-end;}
+  .bubble{
+    padding:11px 14px;
+    border-radius:var(--radius-panel);
+    font-size:13.5px;
+    white-space:pre-wrap;
+  }
+  .msg.customer .bubble{background:var(--panel-2); border:1px solid var(--border);}
+  .msg.agent .bubble{background:var(--panel-3); border:1px solid var(--border); border-color:#333a58;}
+  .msg-role{font-size:11px; color:var(--text-faint); font-family:var(--font-mono);}
+  .msg.agent .msg-role{text-align:right;}
+  .badges{display:flex; gap:6px; flex-wrap:wrap;}
+  .msg.agent .badges{justify-content:flex-end;}
+  .badge{
+    font-family:var(--font-mono);
+    font-size:10.5px;
+    padding:2px 8px;
+    border-radius:var(--radius-pill);
+    border:1px solid var(--border);
+    color:var(--text-dim);
+  }
+  .badge.mem{color:var(--accent); border-color:var(--accent);}
+  .badge.off{color:var(--text-faint);}
+  .badge.known{color:var(--alert); border-color:var(--alert);}
+  .badge.resolved{color:var(--ok); border-color:var(--ok);}
+  .badge.sentiment-frustrated,.badge.sentiment-angry{color:var(--danger); border-color:var(--danger);}
+
+  .composer{
+    border-top:1px solid var(--border);
+    padding:14px 22px 18px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .composer-row{display:flex; gap:10px;}
+  .composer textarea{
+    flex:1;
+    resize:none;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:var(--radius-panel);
+    color:var(--text);
+    padding:10px 12px;
+    font-family:inherit;
+    font-size:13.5px;
+    min-height:44px;
+  }
+  .composer textarea:focus{outline:none; border-color:var(--accent);}
+  .composer-actions{display:flex; justify-content:space-between; align-items:center;}
+  .hint{font-size:11.5px; color:var(--text-faint);}
+
+  /* ---------- Insight panel ---------- */
+  .insight{
+    background:var(--panel);
+    border-left:1px solid var(--border);
+    overflow-y:auto;
+    padding:18px;
+    display:flex;
+    flex-direction:column;
+    gap:20px;
+  }
+  .insight-block h3{
+    margin:0 0 8px;
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--text-dim);
+  }
+  .insight-block .refresh{
+    float:right;
+    color:var(--text-faint);
+    background:none;
+    border:none;
+    font-size:11px;
+    cursor:pointer;
+    font-family:var(--font-mono);
+  }
+  .insight-block .refresh:hover{color:var(--accent);}
+  .digest{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:var(--radius-panel);
+    padding:12px;
+    font-size:12.5px;
+    color:var(--text-dim);
+    white-space:pre-wrap;
+    min-height:48px;
+  }
+  .digest.empty{color:var(--text-faint); font-style:italic;}
+  .signal-row{display:flex; justify-content:space-between; font-size:12px; padding:4px 0; border-bottom:1px solid var(--border);}
+  .signal-row:last-child{border-bottom:none;}
+  .signal-key{color:var(--text-faint); font-family:var(--font-mono);}
+
+  .compare-wrap{
+    border-top:1px solid var(--border);
+    padding-top:16px;
+  }
+  .compare-cols{display:flex; gap:10px; margin-top:10px;}
+  .compare-col{flex:1; min-width:0;}
+  .compare-col h4{margin:0 0 6px; font-size:11px; font-family:var(--font-mono); color:var(--text-faint);}
+  .compare-col.on h4{color:var(--accent);}
+  .compare-col.off h4{color:var(--text-faint);}
+  .compare-text{
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    border-radius:var(--radius-panel);
+    padding:10px;
+    font-size:12px;
+    white-space:pre-wrap;
+    max-height:220px;
+    overflow-y:auto;
+  }
+
+  .toast{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--panel-3); border:1px solid var(--border);
+    padding:9px 16px; border-radius:var(--radius-pill);
+    font-size:12.5px; color:var(--text-dim);
+    opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  .toast.show{opacity:1;}
+
+  .spinner{
+    display:inline-block; width:12px; height:12px;
+    border:2px solid var(--text-faint); border-top-color:var(--accent);
+    border-radius:50%; animation:spin .7s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">Continuum<span class="dot">.</span></div>
+      <div class="brand-sub">memory-native support console</div>
+    </div>
+    <div class="seed-bar">
+      <button class="btn block primary" id="seedBtn">Seed demo history</button>
+    </div>
+    <div class="customer-list" id="customerList">
+      <div class="empty-hint">No customers loaded yet. Seed demo history to load five customers with weeks of realistic ticket history already in memory.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="thread-header">
+      <div>
+        <div class="thread-title" id="threadTitle">Select a customer</div>
+        <div class="thread-subject" id="threadSubject"></div>
+      </div>
+      <div class="mode-toggle" id="modeToggle">
+        <button class="active on" data-mode="on">memory on</button>
+        <button data-mode="off">memory off</button>
+      </div>
+    </div>
+    <div class="thread" id="thread">
+      <div class="empty-hint">Pick a customer on the left, or seed demo history to get started.</div>
+    </div>
+    <div class="composer">
+      <div class="composer-row">
+        <textarea id="msgInput" placeholder="Type the customer's message…"></textarea>
+      </div>
+      <div class="composer-actions">
+        <span class="hint" id="composerHint">memory mode: <b>on</b> — replies are grounded in this customer's history and org policy directives</span>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="compareBtn">Compare with / without memory</button>
+          <button class="btn primary" id="sendBtn">Send</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="insight">
+    <div class="insight-block">
+      <button class="refresh" id="refreshProfile">refresh ↻</button>
+      <h3>Customer profile (mental model)</h3>
+      <div class="digest empty" id="customerProfile">Select a customer to see their auto-generated profile.</div>
+    </div>
+    <div class="insight-block">
+      <button class="refresh" id="refreshKnown">refresh ↻</button>
+      <h3>Known issues digest (shared, cross-customer)</h3>
+      <div class="digest empty" id="knownDigest">No shared memory yet.</div>
+    </div>
+    <div class="insight-block" id="lastSignalsBlock" style="display:none;">
+      <h3>Last reply — what memory produced</h3>
+      <div id="lastSignals"></div>
+    </div>
+    <div class="compare-wrap" id="compareBlock" style="display:none;">
+      <h3 style="margin:0; font-size:12.5px; color:var(--text-dim); font-weight:600;">Same message, two strategies</h3>
+      <div class="compare-cols">
+        <div class="compare-col on">
+          <h4>with hindsight memory</h4>
+          <div class="compare-text" id="compareOn"></div>
+        </div>
+        <div class="compare-col off">
+          <h4>without memory (stateless)</h4>
+          <div class="compare-text" id="compareOff"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const api = (path, opts) => fetch('/api' + path, Object.assign({headers:{'Content-Type':'application/json'}}, opts))
+  .then(async r => {
+    if(!r.ok){ throw new Error((await r.json().catch(()=>({detail:r.statusText}))).detail || r.statusText); }
+    return r.json();
+  });
+
+let state = {
+  customers: [],
+  selectedCustomerId: null,
+  selectedTicketId: null,
+  memoryMode: 'on',
+  liveTicketsByCustomer: {},
+};
+
+const el = id => document.getElementById(id);
+
+function toast(msg){
+  const t = el('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+function planLabel(c){ return `${c.plan} · ${c.environment.split(',')[0]}`; }
+
+function renderCustomerList(){
+  const wrap = el('customerList');
+  if(state.customers.length === 0){
+    wrap.innerHTML = '<div class="empty-hint">No customers loaded yet. Seed demo history to load five customers with weeks of realistic ticket history already in memory.</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  state.customers.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'customer-row' + (c.id === state.selectedCustomerId ? ' active' : '');
+    row.innerHTML = `<div class="customer-name">${c.name}</div><div class="customer-meta">${planLabel(c)}</div>`;
+    row.onclick = () => selectCustomer(c.id);
+    wrap.appendChild(row);
+  });
+}
+
+async function loadCustomers(){
+  state.customers = await api('/customers');
+  renderCustomerList();
+}
+
+async function selectCustomer(customerId){
+  state.selectedCustomerId = customerId;
+  renderCustomerList();
+  const customer = state.customers.find(c => c.id === customerId);
+  el('threadTitle').textContent = customer.name;
+
+  const tickets = await api(`/customers/${customerId}/tickets`);
+  const live = state.liveTicketsByCustomer[customerId];
+  let ticket = tickets.find(t => t.status === 'open') || tickets[tickets.length - 1];
+  if(!ticket && live){ ticket = {id: live.ticket_id, subject: live.subject || ''}; }
+  state.selectedTicketId = ticket ? ticket.id : null;
+  el('threadSubject').textContent = ticket ? ticket.subject : 'No tickets yet';
+
+  if(live){ el('msgInput').value = live.suggested_message; }
+  else { el('msgInput').value = ''; }
+
+  await Promise.all([renderThread(), renderMemoryPanel()]);
+  el('lastSignalsBlock').style.display = 'none';
+  el('compareBlock').style.display = 'none';
+}
+
+async function renderThread(){
+  const wrap = el('thread');
+  if(!state.selectedTicketId){
+    wrap.innerHTML = '<div class="empty-hint">This customer has no tickets yet.</div>';
+    return;
+  }
+  const messages = await api(`/tickets/${state.selectedTicketId}/messages`);
+  if(messages.length === 0){
+    wrap.innerHTML = '<div class="empty-hint">No messages yet — send the first one below.</div>';
+    return;
+  }
+  wrap.innerHTML = '';
+  messages.forEach(m => wrap.appendChild(renderMessage(m)));
+  wrap.scrollTop = wrap.scrollHeight;
+}
+
+function renderMessage(m){
+  const div = document.createElement('div');
+  div.className = 'msg ' + (m.role === 'agent' ? 'agent' : 'customer');
+  const badges = [];
+  if(m.role === 'agent'){
+    badges.push(`<span class="badge ${m.memory_mode === 'on' ? 'mem' : 'off'}">${m.memory_mode === 'on' ? 'memory on' : 'memory off'}</span>`);
+    if(m.meta.sentiment){ badges.push(`<span class="badge sentiment-${m.meta.sentiment}">${m.meta.sentiment}</span>`); }
+    if(m.meta.resolved){ badges.push('<span class="badge resolved">resolved</span>'); }
+    if(m.meta.is_known_issue){ badges.push('<span class="badge known">known issue</span>'); }
+    if(typeof m.meta.memories_used === 'number'){ badges.push(`<span class="badge">${m.meta.memories_used} memories used</span>`); }
+  }
+  div.innerHTML = `
+    <div class="msg-role">${m.role}</div>
+    <div class="bubble">${escapeHtml(m.content)}</div>
+    <div class="badges">${badges.join('')}</div>
+  `;
+  return div;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+async function renderMemoryPanel(){
+  if(!state.selectedCustomerId) return;
+  const insight = await api(`/customers/${state.selectedCustomerId}/memory`);
+  setDigest('customerProfile', insight.customer_profile);
+  setDigest('knownDigest', insight.known_issues_digest);
+}
+
+function setDigest(id, content){
+  const node = el(id);
+  if(content && content.trim()){
+    node.textContent = content;
+    node.classList.remove('empty');
+  } else {
+    node.textContent = id === 'customerProfile'
+      ? 'No profile yet — send a message, then refresh.'
+      : 'No shared memory yet.';
+    node.classList.add('empty');
+  }
+}
+
+function renderLastSignals(meta){
+  const block = el('lastSignalsBlock');
+  block.style.display = 'block';
+  const rows = [
+    ['sentiment', meta.sentiment ?? meta.note ?? '—'],
+    ['resolved', String(meta.resolved ?? '—')],
+    ['known issue', String(meta.is_known_issue ?? '—')],
+    ['root cause', meta.root_cause_tag ?? '—'],
+    ['module', meta.module ?? '—'],
+    ['memories used', meta.memories_used ?? '—'],
+    ['directives applied', meta.directives_applied ?? '—'],
+  ];
+  el('lastSignals').innerHTML = rows.map(([k,v]) =>
+    `<div class="signal-row"><span class="signal-key">${k}</span><span>${v}</span></div>`
+  ).join('');
+}
+
+// ---- mode toggle ----
+el('modeToggle').addEventListener('click', e => {
+  const btn = e.target.closest('button');
+  if(!btn) return;
+  state.memoryMode = btn.dataset.mode;
+  document.querySelectorAll('#modeToggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  el('composerHint').innerHTML = state.memoryMode === 'on'
+    ? 'memory mode: <b>on</b> — replies are grounded in this customer\'s history and org policy directives'
+    : 'memory mode: <b>off</b> — stateless baseline, no Hindsight memory used at all';
+});
+
+// ---- seed ----
+el('seedBtn').addEventListener('click', async () => {
+  const btn = el('seedBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Seeding…';
+  try{
+    const result = await api('/demo/seed', {method:'POST'});
+    result.live_tickets.forEach(lt => {
+      state.liveTicketsByCustomer[lt.customer_id] = {ticket_id: lt.ticket_id, suggested_message: lt.suggested_message, subject: undefined};
+    });
+    await loadCustomers();
+    toast(`Seeded ${result.customers_seeded} customers with ticket history`);
+    if(state.customers.length){ selectCustomer(state.customers[0].id); }
+  } catch(err){
+    toast('Seed failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Seed demo history';
+  }
+});
+
+// ---- send ----
+el('sendBtn').addEventListener('click', async () => {
+  const message = el('msgInput').value.trim();
+  if(!message || !state.selectedTicketId){ return; }
+  const btn = el('sendBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+  try{
+    const reply = await api(`/tickets/${state.selectedTicketId}/messages`, {
+      method:'POST', body: JSON.stringify({message, memory_mode: state.memoryMode})
+    });
+    el('msgInput').value = '';
+    await renderThread();
+    renderLastSignals(reply.meta);
+    if(state.memoryMode === 'on'){ await renderMemoryPanel(); }
+  } catch(err){
+    toast('Send failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send';
+  }
+});
+
+// ---- compare ----
+el('compareBtn').addEventListener('click', async () => {
+  const message = el('msgInput').value.trim();
+  if(!message || !state.selectedCustomerId){ toast('Type a message first'); return; }
+  const btn = el('compareBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Comparing…';
+  try{
+    const result = await api('/compare', {
+      method:'POST',
+      body: JSON.stringify({customer_id: state.selectedCustomerId, message, ticket_id: state.selectedTicketId})
+    });
+    el('compareBlock').style.display = 'block';
+    el('compareOn').textContent = result.with_memory.text;
+    el('compareOff').textContent = result.without_memory.text;
+    await renderMemoryPanel();
+  } catch(err){
+    toast('Compare failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Compare with / without memory';
+  }
+});
+
+// ---- manual mental-model refresh ----
+el('refreshProfile').addEventListener('click', async () => {
+  if(!state.selectedCustomerId) return;
+  el('customerProfile').textContent = 'Refreshing…';
+  const insight = await api(`/customers/${state.selectedCustomerId}/memory/refresh`, {method:'POST'});
+  setDigest('customerProfile', insight.customer_profile);
+});
+el('refreshKnown').addEventListener('click', async () => {
+  el('knownDigest').textContent = 'Refreshing…';
+  const insight = await api('/known-issues/refresh', {method:'POST'});
+  setDigest('knownDigest', insight.known_issues_digest);
+});
+
+el('msgInput').addEventListener('keydown', e => {
+  if(e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); el('sendBtn').click(); }
+});
+
+loadCustomers();
+</script>
+</body>
+</html>

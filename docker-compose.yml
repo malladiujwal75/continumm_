@@ -1,0 +1,36 @@
+# Path B: fully self-hosted, no Hindsight Cloud account needed.
+# Requires GROQ_API_KEY in a .env file next to this file (free tier at
+# https://console.groq.com). Run: docker compose up
+services:
+  hindsight:
+    image: ghcr.io/vectorize-io/hindsight:latest
+    ports:
+      - "8888:8888"   # API
+      - "9999:9999"   # built-in UI
+    environment:
+      HINDSIGHT_API_LLM_PROVIDER: groq
+      HINDSIGHT_API_LLM_API_KEY: ${GROQ_API_KEY}
+      HINDSIGHT_API_LLM_MODEL: openai/gpt-oss-120b
+    volumes:
+      - hindsight_data:/home/hindsight/.pg0
+    restart: unless-stopped
+
+  app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      HINDSIGHT_BASE_URL: http://hindsight:8888
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      BASELINE_LLM_MODEL: openai/gpt-oss-120b
+      PRODUCT_NAME: Nimbus Sync
+      DB_PATH: /data/continuum.db
+    volumes:
+      - app_data:/data
+    depends_on:
+      - hindsight
+    restart: unless-stopped
+
+volumes:
+  hindsight_data:
+  app_data:
